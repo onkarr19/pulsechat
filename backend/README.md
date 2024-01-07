@@ -1,6 +1,6 @@
 # Pulsechat Microservices Architecture
 
-Pulsechat is a microservices-based messaging app developed in Golang, designed to provide secure and efficient end-to-end encrypted messaging, group messaging, and file sharing.
+Pulsechat is a microservices-based messaging app being developed in Golang, designed to provide secure and efficient end-to-end encrypted messaging, group messaging, and file sharing.
 
 ## Services
 
