@@ -8,4 +8,4 @@ Pulsechat is a microservices-based messaging app being developed in Golang, desi
 - **messaging:** Manages the core messaging functionality, including sending and receiving messages.
 - **notification:** Provides notification services for various events within the app.
 - **storage:** Responsible for managing file storage and sharing functionalities.
-- **user:** Manages user-related operations, including profile management.
+- **Profile:** Manages user-related operations, including profile management.
