@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/onkarr19/pulsechat/user/api"
+	"github.com/onkarr19/pulsechat/profile/api"
 )
 
 func main() {
