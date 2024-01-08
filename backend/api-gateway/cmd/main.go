@@ -20,5 +20,8 @@ func main() {
 	r.Any("/storage/*any", internal.ForwardRequest(sd, "storage"))
 
 	// Run the API gateway
-	r.Run(":8080")
+	err := r.Run("localhost:8080")
+	if err != nil {
+		panic(err)
+	}
 }
