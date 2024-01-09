@@ -13,7 +13,7 @@ func main() {
 	api.RegisterRoutes(r)
 
 	// Start the service
-	err := r.Run(":8082")
+	err := r.Run("localhost:8082")
 	if err != nil {
 		log.Fatal("Error starting the server: ", err)
 	}
