@@ -86,24 +86,12 @@ func GetActiveRooms(c *gin.Context) {
 	c.JSON(http.StatusOK, activeRooms)
 }
 
-// func createRoom(c *gin.Context) {
-// 	roomID := c.PostForm("roomID")
-// 	mu.Lock()
-// 	defer mu.Unlock()
-// 	if existsRoom(roomID) {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Room already exists"})
-// 		return
-// 	}
-// 	createRoomInRedis(roomID)
-// 	c.JSON(http.StatusOK, gin.H{"message": "Room created successfully"})
-// }
-
 func JoinRoom(c *gin.Context) {
 	roomID := c.PostForm("roomID")
 	userID := c.PostForm("userID")
 	mu.Lock()
 	defer mu.Unlock()
-	if !ExistsRoom(roomID) {
+	if !existsRoom(roomID) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Room does not exist"})
 		return
 	}
@@ -119,7 +107,7 @@ func LeaveRoom(c *gin.Context) {
 	userID := c.PostForm("userID")
 	mu.Lock()
 	defer mu.Unlock()
-	if !ExistsRoom(roomID) {
+	if !existsRoom(roomID) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Room does not exist"})
 		return
 	}
@@ -127,7 +115,7 @@ func LeaveRoom(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "User left room successfully"})
 }
 
-func ExistsRoom(roomID string) bool {
+func existsRoom(roomID string) bool {
 	conn := redisPool.Get()
 	defer conn.Close()
 	exists, err := redis.Bool(conn.Do("EXISTS", roomID))
@@ -144,7 +132,6 @@ func createRoomInRedis(roomID string) error {
 
 	_, err := conn.Do("SET", roomID, "")
 	if err != nil {
-		// Handle the error, log it, and possibly return an error response.
 		log.Printf("Error setting room in Redis: %v", err)
 		return err
 	}
