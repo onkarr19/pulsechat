@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gomodule/redigo/redis"
@@ -28,11 +30,11 @@ func init() {
 
 // Create a new room
 func CreateRoom(c *gin.Context) {
-	var requestData struct {
+	var requestBody struct {
 		Name string `json:"name"`
 	}
 
-	if err := c.BindJSON(&requestData); err != nil {
+	if err := c.BindJSON(&requestBody); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -40,26 +42,32 @@ func CreateRoom(c *gin.Context) {
 	roomID := uuid.New().String()
 
 	newRoom := &models.Room{
-		ID:    roomID,
-		Name:  requestData.Name,
-		Users: make(map[string]bool),
+		ID:        roomID,
+		Name:      requestBody.Name,
+		CreatedAt: time.Now(),
+		Users:     make(map[string]bool),
 	}
 
 	rooms[roomID] = newRoom
 
-	createRoomInRedis(roomID)
+	if err := createRoomInRedis(roomID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create a room"})
+		return
+	}
 	responseData := struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
+		ID        string    `json:"id"`
+		Name      string    `json:"name"`
+		CreatedAt time.Time `json:"created-at"`
 	}{
-		ID:   newRoom.ID,
-		Name: newRoom.Name,
+		ID:        newRoom.ID,
+		Name:      newRoom.Name,
+		CreatedAt: newRoom.CreatedAt,
 	}
 
 	c.JSON(http.StatusOK, responseData)
 }
 
-// Get active rooms (already created)
+// Get active rooms
 func GetActiveRooms(c *gin.Context) {
 	type responseData struct {
 		ID   string `json:"id"`
@@ -130,10 +138,19 @@ func ExistsRoom(roomID string) bool {
 	return exists
 }
 
-func createRoomInRedis(roomID string) {
+func createRoomInRedis(roomID string) error {
 	conn := redisPool.Get()
 	defer conn.Close()
-	conn.Do("SET", roomID, "")
+
+	_, err := conn.Do("SET", roomID, "")
+	if err != nil {
+		// Handle the error, log it, and possibly return an error response.
+		log.Printf("Error setting room in Redis: %v", err)
+		return err
+	}
+
+	fmt.Println("reaching in redis")
+	return nil
 }
 
 func addUserToRoom(roomID, userID string) bool {
