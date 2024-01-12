@@ -7,9 +7,13 @@ import (
 
 func RegisterRoutes(r *gin.Engine) {
 	r.GET("/", handlers.Home)
-	r.GET("/active-rooms", handlers.GetActiveRooms)
-	r.POST("/create-room", handlers.CreateRoom)
-	r.POST("/join-room", handlers.CreateRoom)
-	r.POST("/leave-room", handlers.CreateRoom)
-	r.GET("/broadcast/:roomID/:userID", handlers.WebSocket)
+	r.GET("/rooms", handlers.GetRooms)
+	r.POST("/rooms", handlers.CreateRoom)
+	r.PUT("/rooms/:id/join", handlers.JoinRoom)
+	r.DELETE("/rooms/:id/leave", handlers.LeaveRoom)
+	r.GET("/rooms/:id", handlers.GetParticipants)
+
+	// r.GET("/rooms/:id/messages", handlers.GetMessages)
+	// r.GET("/messages/:id", getPendingMessages)
+	// r.POST("/messages", sendMessage)
 }
