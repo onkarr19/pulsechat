@@ -17,6 +17,7 @@ var upgrader = websocket.Upgrader{
 }
 
 var rooms = make(map[string]*models.Room)
+
 var connections = make(map[string]*websocket.Conn)
 
 // WebSocketHandler handles WebSocket connections
@@ -44,14 +45,14 @@ func WebSocket(c *gin.Context) {
 	}
 
 	// Register user to the room
-	room.Users[userID] = true
+	room.Participants = append(room.Participants, models.User{ID: userID})
 
 	// Handle WebSocket messages
 	for {
 		messageType, p, err := conn.ReadMessage()
 		if err != nil {
 			// Remove the user from the room and connections map when they disconnect
-			delete(room.Users, userID)
+			// delete(room.Participants, userID)
 			delete(connections, userID)
 			return
 		}
@@ -64,16 +65,16 @@ func WebSocket(c *gin.Context) {
 			messageWithSender := fmt.Sprintf("[%s]: %s", userID, message)
 
 			// Broadcast the message to all users in the room
-			for recipientUserID := range room.Users {
-				recipientConn, found := connections[recipientUserID]
+			for i := range room.Participants {
+				recipientConn, found := connections[room.Participants[i].ID]
 				if !found {
 					// Handle case where recipient is not connected
-					log.Printf("User %s is not connected\n", recipientUserID)
+					log.Printf("User %s is not connected\n", room.Participants[i].ID)
 					continue
 				}
 				if err := recipientConn.WriteMessage(websocket.TextMessage, []byte(messageWithSender)); err != nil {
 					// Handle write error (e.g., user disconnected)
-					log.Printf("Error sending message to user %s: %v\n", recipientUserID, err)
+					log.Printf("Error sending message to user %s: %v\n", room.Participants[i].ID, err)
 				}
 			}
 		}

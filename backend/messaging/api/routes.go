@@ -9,8 +9,8 @@ func RegisterRoutes(r *gin.Engine) {
 	r.GET("/", handlers.Home)
 	r.GET("/rooms", handlers.GetRooms)
 	r.POST("/rooms", handlers.CreateRoom)
-	r.PUT("/rooms/:id/join", handlers.JoinRoom)
-	r.DELETE("/rooms/:id/leave", handlers.LeaveRoom)
+	r.PUT("/rooms/:id/", handlers.JoinRoom)
+	r.DELETE("/rooms/:id/", handlers.LeaveRoom)
 	r.GET("/rooms/:id", handlers.GetParticipants)
 
 	// r.GET("/rooms/:id/messages", handlers.GetMessages)
