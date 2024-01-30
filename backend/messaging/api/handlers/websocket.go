@@ -1,81 +1,74 @@
 package handlers
 
 import (
-	"fmt"
+	"encoding/json"
 	"log"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/onkarr19/pulsechat/messaging/internal/models"
 )
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
+var (
+	upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+	}
+
+	broadcast = make(chan models.Message)
+)
+
+type Connection struct {
+	WebSocket *websocket.Conn
+	UserID    string
 }
 
 var rooms = make(map[string]*models.Room)
-var connections = make(map[string]*websocket.Conn)
+var connections = make(map[*Connection]bool)
 
 // WebSocketHandler handles WebSocket connections
 func WebSocket(c *gin.Context) {
-	roomID := c.Param("roomID")
 	userID := c.Param("userID")
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Println(err)
-		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
+
 	defer conn.Close()
 
-	// Add the user's WebSocket connection to the connections map
-	connections[userID] = conn
-
-	// Check if the room exists
-	room, exists := rooms[roomID]
-	if !exists {
-		log.Printf("Room %s does not exist\n", roomID)
-		c.AbortWithStatus(http.StatusNotFound)
-		return
+	connection := &Connection{
+		WebSocket: conn,
+		UserID:    userID,
 	}
 
-	// Register user to the room
-	room.Users[userID] = true
+	connections[connection] = true
 
-	// Handle WebSocket messages
+	// Listen for messages from the client
+	go readMessages(connection)
+
+	// Listen for close events
+	<-c.Request.Context().Done()
+	delete(connections, connection)
+}
+
+func readMessages(c *Connection) {
 	for {
-		messageType, p, err := conn.ReadMessage()
+		_, msg, err := c.WebSocket.ReadMessage()
 		if err != nil {
-			// Remove the user from the room and connections map when they disconnect
-			delete(room.Users, userID)
-			delete(connections, userID)
-			return
+			break
 		}
 
-		// Handle chat message
-		if messageType == websocket.TextMessage {
-			message := string(p)
-
-			// Include the user's ID in the message
-			messageWithSender := fmt.Sprintf("[%s]: %s", userID, message)
-
-			// Broadcast the message to all users in the room
-			for recipientUserID := range room.Users {
-				recipientConn, found := connections[recipientUserID]
-				if !found {
-					// Handle case where recipient is not connected
-					log.Printf("User %s is not connected\n", recipientUserID)
-					continue
-				}
-				if err := recipientConn.WriteMessage(websocket.TextMessage, []byte(messageWithSender)); err != nil {
-					// Handle write error (e.g., user disconnected)
-					log.Printf("Error sending message to user %s: %v\n", recipientUserID, err)
-				}
-			}
+		var message models.Message
+		err = json.Unmarshal(msg, &message)
+		if err != nil {
+			log.Println("Error decoding message:", err)
+			continue
 		}
+
+		// TODO: Handle the received message (forward it to RabbitMQ)
+
+		broadcast <- message
 	}
 }
