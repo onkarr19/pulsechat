@@ -18,8 +18,6 @@ var (
 			return true
 		},
 	}
-
-	broadcast = make(chan models.Message)
 )
 
 type Connection struct {
@@ -28,36 +26,50 @@ type Connection struct {
 }
 
 var rooms = make(map[string]*models.Room)
-var connections = make(map[*Connection]bool)
 
 // WebSocketHandler handles WebSocket connections
 func WebSocket(c *gin.Context) {
-	userID := c.Param("userID")
+	room := c.Param("room")
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-
 	defer conn.Close()
 
-	connection := &Connection{
-		WebSocket: conn,
-		UserID:    userID,
+	// Create or retrieve the RoomProcess for the given room
+	roomMutex.Lock()
+	rp, ok := RoomProcesses[room]
+	if !ok {
+		rp = NewRoomProcess(room)
+		RoomProcesses[room] = rp
+		rp.Start()
 	}
+	rp.AddConnection(conn)
+	roomMutex.Unlock()
 
-	connections[connection] = true
+	// Close the connection when the function returns
+	defer func() {
+		roomMutex.Lock()
+		rp.RemoveConnection(conn)
+		roomMutex.Unlock()
+	}()
 
-	// Listen for messages from the client
-	go readMessages(connection)
+	// Read and broadcast messages
+	for {
+		_, p, err := conn.ReadMessage()
+		if err != nil {
+			log.Println(err)
+			return
+		}
 
-	// Listen for close events
-	<-c.Request.Context().Done()
-	delete(connections, connection)
+		// Publish the message to the RabbitMQ fanout exchange
+		PublishToRabbitMQ(room, p)
+	}
 }
 
-func readMessages(c *Connection) {
+func ReadMessages(c *Connection) {
 	for {
 		_, msg, err := c.WebSocket.ReadMessage()
 		if err != nil {
@@ -73,6 +85,6 @@ func readMessages(c *Connection) {
 
 		// TODO: Handle the received message (forward it to RabbitMQ)
 
-		broadcast <- message
+		// broadcast <- message
 	}
 }
